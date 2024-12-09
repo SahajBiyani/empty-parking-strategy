@@ -1,0 +1,93 @@
+#+TITLE: UTD-RTOS Assignment 3 
+#+AUTHOR: Jaidyn Levesque, Stephen Martinez, Sahaj Biyani
+#+DESCRIPTION: CS 4397.001
+#+OPTIONS: toc:nil
+#+OPTIONS: title:nil
+#+OPTIONS: author:nil
+
+* Tasks
+** Orientation Task
+- *Description*: Rotates the Ego to the target angle.
+- *Dependencies*: `Memory.oriented`, `Memory.target_angle`, `DeviceRegistry.compass`
+- *Interaction*: Sets `Memory.oriented` to 1 when rotation is complete.
+
+** Movement Task
+- *Description*: Moves the Ego forward when not rotating or braking.
+- *Dependencies*: `Memory.oriented`, `Memory.brake`, `DeviceRegistry.speedControl`
+
+** Brake Task
+- *Description*: Applies emergency brake if the Ego is about to go off-road.
+- *Dependencies*: `DeviceRegistry.pixels`, `DeviceRegistry.brakeControl`, `Memory.brake`
+- *Interaction*: Sets `Memory.brake` to 1 when braking.
+
+** Position Task
+- *Description*: Navigates the Ego through the parking lot, using wall following.
+- *Dependencies*: `DeviceRegistry.gps`, `DeviceRegistry.lidar`, `Memory.target_angle`, `Memory.points`, `Memory.avoid_obstacle`
+- *Interaction*: Sets `Memory.check_spot` to 1 when in the middle of a parking space. Sets `Memory.target_angle` for navigation.  Sets `Memory.avoid_obstacle` when avoiding obstacles.
+
+** Perception Task
+- *Description*: Detects empty parking spaces and initiates the parking procedure. Also handles obstacle avoidance.
+- *Dependencies*: `DeviceRegistry.lidar`, `Memory.check_spot`, `Memory.found_spot`, `Memory.parking`, `Memory.park_stage`, `Memory.avoid_obstacle`
+- *Interaction*: Sets `Memory.found_spot` to 1 when a spot is found. Sets `Memory.parking` to 1 to start parking procedure. Sets `Memory.avoid_obstacle` and adjusts `Memory.target_angle` for obstacle avoidance.
+
+** Parking Task
+- *Description*: Executes the parking procedure once a spot is found.
+- *Dependencies*: `Memory.parking`, `Memory.park_stage`, `DeviceRegistry.lidar`, `DeviceRegistry.speedControl`, `DeviceRegistry.steeringControl`, `DeviceRegistry.compass`
+- *Interaction*: Manages `Memory.park_stage` to track parking progress. Sets `Memory.parking` to 0 when parking is complete.
+
+* Task Schedule Example (Two Cycles)
+
+(Diagram would be placed here, showing the task execution order.  Since visual diagrams aren't possible in this format, I'll provide a textual description.)
+
+Cycle 1:
+1. Orientation Task: Checks if reorientation is needed.
+2. Brake Task: Checks for off-road conditions.
+3. Movement Task: Moves the Ego forward if conditions allow.
+4. Position Task: Determines the next navigation target.
+5. Perception Task: Checks for parking spots and obstacles.
+6. Parking Task: (Inactive unless a spot is found)
+
+Cycle 2: (Similar to Cycle 1, but actions depend on sensor readings and memory values.  For example, if Perception Task found a spot, Parking Task becomes active.)
+1. Orientation Task
+2. Brake Task
+3. Movement Task
+4. Position Task
+5. Perception Task
+6. Parking Task (Potentially active)
+
+The order of execution prioritizes safety (Brake, Orientation) and then navigation (Movement, Position, Perception).  The Parking Task takes over when a spot is found.
+
+Assignment 3 Documentation (Problem 4):
+Goal:
+The objective of the simulation is to autonomously move the Ego vehicle through a parking lot, avoiding obstacles (parked cars, pedestrians) and reaching the empty parking space.
+
+Constraints:
+Sensor Constraints: The Ego vehicle must rely solely on sensor data provided through the Real-Time Operating System (RTOS), which includes readings from a camera, lidar, compass, speedometer, and GPS. These sensors provide information about the Ego vehicle’s surroundings and orientation.
+Actuator Constraints: The Ego vehicle can only interact with its environment through the actuators available via the RTOS. This includes speed control, brake control, and steering control systems.
+Environmental Constraints: The Ego vehicle must stay within the parking lot, avoiding any collisions with parked cars or pedestrians.
+
+Sensors:
+DeviceRegistry.pixels: The camera provides a 7-pixel tall by 15-pixel wide image to identify nearby obstacles and the parking lot environment, including the empty parking space, parked cars, and pedestrians.
+DeviceRegistry.lidar: Lidar sensors give 360-degree proximity data using 16 sensors around the vehicle, detecting nearby objects and obstacles.
+DeviceRegistry.compass: The compass indicates the Ego vehicle’s deviation from true north, aiding in direction and orientation adjustments.
+DeviceRegistry.speedometer: Provides the vehicle's speed, crucial for controlling movement and ensuring that speed is adjusted for safe navigation in the parking lot.
+DeviceRegistry.gps: GPS data provides the latitude and longitude of the Ego vehicle’s position, converted to meters, allowing the vehicle to track its movement in the parking lot.
+
+Actuators:
+DeviceRegistry.speedControl: Controls the acceleration system of the Ego vehicle, allowing it to adjust speed as needed while searching for a parking space or avoiding obstacles.
+DeviceRegistry.brakeControl: Manages the brake system to slow down or stop the Ego vehicle as necessary.
+DeviceRegistry.steeringControl: Provides the ability to steer the Ego vehicle in the desired direction based on sensor data and the current environment.
+
+Task Scheduling Graph (for two cycles):
+The graph represents task execution over time, showing that tasks such as obstacle detection and parking space search operate concurrently with speed and steering control. Once the empty parking space is detected, the parking procedure task is triggered.
+
+Cycle 1: At the start of the simulation, the Ego vehicle begins by executing the Parking Space Search Task and the Obstacle Detection Task. These tasks run continuously to ensure the vehicle is both searching for the empty space and avoiding obstacles.
+Concurrently, the Speed and Steering Control Task is executed to ensure the vehicle is navigating in the correct direction and maintaining safe speeds.
+Cycle 2: If an obstacle or pedestrian is detected, the Pedestrian Avoidance Task is triggered, adjusting the path of the vehicle. The Parking Procedure Task is initiated once the empty space is found, and the Ego vehicle begins to maneuver into the space. The steering and braking controls are crucial during this phase to ensure precise movements.
+
+Tasks for Controlling the Ego Vehicle:
+Obstacle Detection Task: This task reads data from the lidar and camera sensors to detect obstacles in the form of parked cars, pedestrians, and moving cars. It informs the Ego vehicle’s decision-making process for avoiding these objects.
+Parking Space Search Task: Implements a search algorithm (such as a modified wall-following strategy) to locate the empty parking space. The vehicle moves through the parking lot while adhering to the wall-following strategy and modifying it to handle non-contiguous boundaries.
+Pedestrian Avoidance Task: Detects pedestrians using lidar and camera sensors. This task computes the optimal route to avoid them and adjusts the Ego vehicle’s path accordingly. Pedestrians will turn away if they come within 4.1 meters of the Ego vehicle, but the vehicle must still avoid direct collisions from the front.
+Speed and Steering Control Task: Adjusts the Ego vehicle’s speed and steering based on sensor readings and the current driving conditions. This task ensures smooth navigation through the parking lot, slowing down when necessary and adjusting the steering direction to avoid obstacles or reach the empty parking space.
+Parking Procedure Task: Once the empty parking space is located, this task maneuvers the Ego vehicle into the space, avoiding parked cars on either side. It ensures the vehicle enters the space correctly and stops when fully parked.
